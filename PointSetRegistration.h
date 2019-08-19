@@ -9,8 +9,6 @@
 #include "itkJensenHavrdaCharvatTsallisPointSetToPointSetMetricv4.h"
 #include "itkGradientDescentOptimizerv4.h"
 #include "itkRegistrationParameterScalesFromPhysicalShift.h"
-#include "itkAffineTransform.h"
-#include "itkCenteredAffineTransform.h"
 #include "itkCommand.h"
 #include "itkBoundingBox.h"
 #include "itkPointSetMultiscaleOptimalTransportMethod.h"
@@ -53,6 +51,7 @@ public:
     std::cout << std::endl;
     }
 };
+
 
 template< typename TTransform, typename TMetric, typename TPointSet >
 int PointSetMetricRegistration(
@@ -128,27 +127,28 @@ int PointSetMetricRegistration(
 
 
 
-template< typename TPixelType >
+template< typename TPixelType, typename TAffineTransform>
 class PointSetRegistration
 {
 public:
   static constexpr unsigned int Dimension = 2;
   using PointSetType = typename itk::PointSet<TPixelType, Dimension>;
   using PointType = typename PointSetType::PointType;
-  using PointIdentifier = typename PointSetType::PointIdentifier; 
-  using CoordRepType = typename PointSetType::CoordRepType; 
+  using PointIdentifier = typename PointSetType::PointIdentifier;
+  using CoordRepType = typename PointSetType::CoordRepType;
   using BoundingBoxType = typename itk::BoundingBox< PointIdentifier, Dimension, CoordRepType>;
   using PointsContainerPointer = typename PointSetType::PointsContainerPointer;
   using PointsContainer = typename PointSetType::PointsContainer;
-  
+
   using MeshType = typename itk::Mesh<TPixelType, Dimension>;
   using MeshPointer = typename MeshType::Pointer;
 
-  using AffineTransformType = itk::AffineTransform<double, Dimension>;
+  using AffineTransformType = TAffineTransform;
+  using AffineTransformPointer = typename TAffineTransform::Pointer;
 
-  
-  static typename AffineTransformType::Pointer Process( MeshPointer fixedMesh, MeshPointer movingMesh,
-                                        unsigned int metricId=3, double pointSetSigma=3.0, 
+
+  static AffineTransformPointer Process( MeshPointer fixedMesh, MeshPointer movingMesh,
+                                        unsigned int metricId=3, double pointSetSigma=3.0,
                                         unsigned int numberOfIterations=200, double maximumPhysicalStepSize = 1.27 )
   {
     const PointsContainer *fixedPoints =  fixedMesh->GetPoints();
@@ -165,7 +165,7 @@ public:
     movingBoundingBox->ComputeBoundingBox();
     PointType minPointM = movingBoundingBox->GetMinimum();
     PointType maxPointM = movingBoundingBox->GetMaximum();
- 
+
 
     PointType shiftMin = minPointM - minPointF;
     PointType shiftMax = maxPointM - maxPointF;
@@ -176,7 +176,7 @@ public:
       {
       minPointF[i] = std::max( minPointF[i] + trimSizeMoving, minPointM[i] + trimSizeMoving );
       maxPointF[i] = std::min( maxPointF[i] -trimSizeMoving, maxPointM[i] - trimSizeMoving);
-      minPointM[i] = minPointF[i]; 
+      minPointM[i] = minPointF[i];
       maxPointM[i] = maxPointF[i];
       maxPointF[i] = maxPointF[i] - trimSizeFixed;
       minPointF[i] = minPointF[i] + trimSizeFixed;
@@ -233,7 +233,7 @@ public:
     affineTransform->SetIdentity();
     //PointType center = minPointF + (maxPointF - minPointF)/2;
     //center[1] = 0;
-    //affineTransform->SetCenter(center); 
+    //affineTransform->SetCenter(center);
     typename AffineTransformType::OutputVectorType shiftVector;
     shiftVector.Fill(0);
     shiftVector[0] = shiftMin[0];
@@ -253,7 +253,7 @@ public:
         typename PointSetMetricType::Pointer metric = PointSetMetricType::New();
 
         PointSetMetricRegistration<AffineTransformType, PointSetMetricType, PointSetType>
-           ( numberOfIterations, maximumPhysicalStepSize, affineTransform, metric, 
+           ( numberOfIterations, maximumPhysicalStepSize, affineTransform, metric,
              fixedPointSet, movingPointSet );
         }
         break;

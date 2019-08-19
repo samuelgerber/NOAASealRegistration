@@ -1,15 +1,13 @@
-#include "itkMeshFileReader.h"
-#include "itkMeshFileWriter.h"
-#include "itkMesh.h"
+#include "TransformHandler.h"
 #include "itkAffineTransform.h"
 #include "itkCenteredAffineTransform.h"
+#include "itkMeshFileReader.h"
+#include "itkMeshFileWriter.h"
 #include "itkTransformFileReader.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 #include "itkRescaleIntensityImageFilter.h"
-#include "itkResampleImageFilter.h"
 #include "itkTransformFileWriter.h"
-#include <itkRescaleIntensityImageFilter.h>
 
 template< typename TTransform >
 typename TTransform::Pointer
@@ -41,11 +39,13 @@ int main(int argc, char * argv[])
   const char * movingOriginalImageFile = argv[7];
   const char * scaledTransformFile = argv[8];
 
-  constexpr unsigned int Dimension = 2;
-  // Current work around for visualization purposes
-  constexpr unsigned int MeshDimension = 3;
-  using PointSetType = itk::PointSet<unsigned char, MeshDimension>;
-  using MeshType = itk::Mesh<unsigned char, MeshDimension>;
+  constexpr unsigned int Dimension =2;
+  using AffineTransformType = itk::AffineTransform<double, Dimension>;
+  using TransformHandlerType = TransformHandler<unsigned char, AffineTransformType>;
+
+  using PointSetType = TransformHandlerType::PointSetType;
+  using MeshType = TransformHandlerType::MeshType;
+
 
   using MeshReaderType = itk::MeshFileReader< MeshType >;
   MeshReaderType::Pointer meshReader = MeshReaderType::New();
@@ -61,7 +61,6 @@ int main(int argc, char * argv[])
     }
   MeshType::Pointer mesh = meshReader->GetOutput();
 
-  using AffineTransformType = itk::AffineTransform<double, Dimension>;
   AffineTransformType::Pointer transform;
   try
     {
@@ -75,24 +74,9 @@ int main(int argc, char * argv[])
   std::cout << transform << std::endl;
 
 
+  //Transform Mesh
 
-  using PointType = PointSetType::PointType;
-  using TransformPointType = AffineTransformType::InputPointType;
-  using PointIdentifierType = PointSetType::PointIdentifier;
-  const PointIdentifierType numberOfPoints = mesh->GetNumberOfPoints();
-  PointType transformedPoint;
-  TransformPointType transformedPoint2D;
-  for( PointIdentifierType pointId = 0; pointId < numberOfPoints; ++pointId )
-    {
-    mesh->GetPoint( pointId, &transformedPoint );
-    transformedPoint2D[0] = transformedPoint[0];
-    transformedPoint2D[1] = transformedPoint[1];
-    transformedPoint2D = transform->TransformPoint( transformedPoint2D );
-    transformedPoint[0] = transformedPoint2D[0];
-    transformedPoint[1] = transformedPoint2D[1];
-    mesh->SetPoint( pointId, transformedPoint );
-    }
-
+  TransformHandlerType::TransformMesh(mesh, transform);
   using MeshWriterType = itk::MeshFileWriter< MeshType >;
   MeshWriterType::Pointer meshWriter = MeshWriterType::New();
   meshWriter->SetFileName( transformedFixedPointSetFile );
@@ -108,8 +92,9 @@ int main(int argc, char * argv[])
     return EXIT_FAILURE;
     }
 
-  using ReadPixelType = int;
-  using ReadImageType = itk::Image< ReadPixelType, Dimension >;
+
+  //Read images
+  using ReadImageType = TransformHandlerType::ReadImageType;
   using ImageReaderType = itk::ImageFileReader< ReadImageType >;
   ImageReaderType::Pointer fixedReader = ImageReaderType::New();
   fixedReader->SetFileName( fixedImageFile );
@@ -165,38 +150,21 @@ int main(int argc, char * argv[])
   ReadImageType::Pointer movingOriginalImage = movingOriginalReader->GetOutput();
 
 
-  
-
-  AffineTransformType::InverseTransformBasePointer inverseTransform = transform->GetInverseTransform();
 
 
 
 
 
-  using WritePixelType = unsigned char;
-  using WriteImageType = itk::Image< WritePixelType, Dimension >;
-  using ResamplerType = itk::ResampleImageFilter< ReadImageType, WriteImageType >;
-  ResamplerType::Pointer resampler = ResamplerType::New();
-  resampler->SetInput( movingImage );
-  resampler->SetOutputParametersFromImage( fixedImage );
-  resampler->SetTransform( transform );
-  try
-    {
-    resampler->Update();
-    }
-  catch( itk::ExceptionObject & error )
-    {
-    std::cerr << "Error when resampling: " << error << std::endl;
-    return EXIT_FAILURE;
-    }
-  WriteImageType::Pointer transformedFixedImage = resampler->GetOutput();
+  using WriteImageType = TransformHandlerType::WriteImageType;
 
-
+   //Transform moving to fixed
+  WriteImageType::Pointer txfMovingImage =
+          TransformHandlerType::TransformImage(movingImage, fixedImage, transform);
 
   using ImageWriterType = itk::ImageFileWriter< WriteImageType >;
   ImageWriterType::Pointer fixedWriter = ImageWriterType::New();
   fixedWriter->SetFileName( "TransformedMovingImage.mhd" );
-  fixedWriter->SetInput( transformedFixedImage );
+  fixedWriter->SetInput( txfMovingImage );
   try
     {
     fixedWriter->Update();
@@ -208,6 +176,11 @@ int main(int argc, char * argv[])
     }
 
 
+  //Transform fixed to moving
+
+  WriteImageType::Pointer txfFixedImage =
+          TransformHandlerType::TransformImage(fixedImage, movingImage, transform, true);
+  /*
   using RescaleFilterType = itk::RescaleIntensityImageFilter< ReadImageType, WriteImageType >;
   RescaleFilterType::Pointer rescaler1 = RescaleFilterType::New();
   rescaler1->SetOutputMaximum( 255 );
@@ -226,26 +199,11 @@ int main(int argc, char * argv[])
     std::cerr << "Error when writing: " << error << std::endl;
     return EXIT_FAILURE;
     }
-
-  ResamplerType::Pointer movingResampler = ResamplerType::New();
-  movingResampler->SetInput( fixedImage );
-  movingResampler->SetOutputParametersFromImage( movingImage );
-  movingResampler->SetTransform( inverseTransform );
-  try
-    {
-    movingResampler->Update();
-    }
-  catch( itk::ExceptionObject & error )
-    {
-    std::cerr << "Error when resampling: " << error << std::endl;
-    return EXIT_FAILURE;
-    }
-  WriteImageType::Pointer transformedMovingImage = movingResampler->GetOutput();
-
+*/
 
   ImageWriterType::Pointer movingWriter = ImageWriterType::New();
   movingWriter->SetFileName( "TransformedFixedImage.mhd" );
-  movingWriter->SetInput( transformedMovingImage );
+  movingWriter->SetInput( txfFixedImage );
   try
     {
     movingWriter->Update();
@@ -255,9 +213,12 @@ int main(int argc, char * argv[])
     std::cerr << "Error when writing: " << error << std::endl;
     return EXIT_FAILURE;
     }
-   
 
-  
+
+  //TODO: add VIAME correction to transform
+
+  /*
+
   RescaleFilterType::Pointer rescaler2 = RescaleFilterType::New();
   rescaler2->SetOutputMaximum( 255 );
   rescaler2->SetOutputMinimum( 0 );
@@ -275,20 +236,22 @@ int main(int argc, char * argv[])
     std::cerr << "Error when writing: " << error << std::endl;
     return EXIT_FAILURE;
     }
- 
+ */
 
+
+  /*
   std::cout << "Transform" << transform << std::endl;
   AffineTransformType::OutputVectorType scaling;
   scaling.Fill(1);
   for(int i=0; i<2; i++)
-    { 
+    {
     scaling[i] = 10;
-    //movingImage->GetSpacing()[i] / fixedImage->GetSpacing()[i] * 
+    //movingImage->GetSpacing()[i] / fixedImage->GetSpacing()[i] *
     //fixedOriginalImage->GetSpacing()[i] / movingOriginalImage->GetSpacing()[i];
     }
   std::cout << scaling << std::endl;
   transform->Scale ( scaling, false );
-  
+
   using TransformWriterType = itk::TransformFileWriterTemplate< double >;
   TransformWriterType::Pointer transformWriter = TransformWriterType::New();
   transformWriter->SetInput( transform );
@@ -302,6 +265,8 @@ int main(int argc, char * argv[])
     std::cerr << "Error when writing output transform: " << error << std::endl;
     return EXIT_FAILURE;
     }
+*/
+
 
   return EXIT_SUCCESS;
 }

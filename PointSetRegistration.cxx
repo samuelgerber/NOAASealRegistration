@@ -3,6 +3,9 @@
 #include "itkMeshFileReader.h"
 #include "itkTransformFileWriter.h"
 
+#include "itkAffineTransform.h"
+#include "itkCenteredAffineTransform.h"
+
 int main(int argc, char * argv[])
 {
   if( argc < 4 )
@@ -35,8 +38,10 @@ int main(int argc, char * argv[])
     pointSetSigma = std::stod( argv[7] );
     }
 
-  using PointSetRegistrationType = PointSetRegistration<unsigned char>;
-    
+  constexpr unsigned int Dimension=2;
+  using AffineTransformType = itk::AffineTransform<double, Dimension>;
+  using PointSetRegistrationType = PointSetRegistration<unsigned char, AffineTransformType>;
+
   using MeshType = PointSetRegistrationType::MeshType;
 
   using MeshReaderType = itk::MeshFileReader< MeshType >;
@@ -67,9 +72,8 @@ int main(int argc, char * argv[])
   MeshType::Pointer movingMesh = movingReader->GetOutput();
 
 
-  PointSetRegistrationType::AffineTransformType::Pointer affineTransform = 
-    PointSetRegistrationType::Process( fixedMesh, movingMesh, metricId, 
-                    pointSetSigma, numberOfIterations, maximumPhysicalStepSize);
+  auto affineTransform =  PointSetRegistrationType::Process( fixedMesh, movingMesh,
+                  metricId, pointSetSigma, numberOfIterations, maximumPhysicalStepSize);
 
   using TransformWriterType = itk::TransformFileWriterTemplate< double >;
   TransformWriterType::Pointer transformWriter = TransformWriterType::New();
