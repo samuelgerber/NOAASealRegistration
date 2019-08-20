@@ -24,34 +24,10 @@ public:
 
     constexpr unsigned int Dimension = ImageType::ImageDimension;
 
-    using ShrinkerType = itk::BinShrinkImageFilter< ImageType, ImageType >;
-    typename ShrinkerType::Pointer shrinker = ShrinkerType::New();
-    shrinker->SetInput( input  );
-    using ShrinkFactorsType = typename ShrinkerType::ShrinkFactorsType;
-    ShrinkFactorsType shrinkFactors;
-    shrinkFactors.Fill( 10 );
-    shrinker->SetShrinkFactors( shrinkFactors );
-
-    itk::FixedArray<bool, Dimension> flipAxes;
-    for(int i=0; i < Dimension; i++){
-      flipAxes[i] = false;
-    }
-    //flipAxes[0] = true;
-    //flipAxes[1] = true;
-    using FlipImageFilterType = itk::FlipImageFilter <ImageType>;
-    typename FlipImageFilterType::Pointer flipFilter = FlipImageFilterType::New();
-    if( isThermal ){
-      flipFilter->SetInput( input );
-    }
-    else{
-      flipFilter->SetInput(shrinker->GetOutput() );
-    }
-    flipFilter->SetFlipAxes(flipAxes);
-    flipFilter->Update();
-
+    //VIAME assumes 1x1 pixel size
     using ChangeSpacingFilterType = itk::ChangeInformationImageFilter< ImageType >;
     typename ChangeSpacingFilterType::Pointer changeSpacing  = ChangeSpacingFilterType::New();
-    changeSpacing->SetInput( flipFilter->GetOutput() );
+    changeSpacing->SetInput( input );
     typename ImageType::SpacingType forcedSpacing;
     forcedSpacing.Fill( 1.0 );
     changeSpacing->SetOutputSpacing( forcedSpacing );
@@ -72,17 +48,50 @@ public:
       }
     
 
+    using ShrinkerType = itk::BinShrinkImageFilter< ImageType, ImageType >;
+    typename ShrinkerType::Pointer shrinker = ShrinkerType::New();
+    shrinker->SetInput( changeSpacing->GetOutput()  );
+    using ShrinkFactorsType = typename ShrinkerType::ShrinkFactorsType;
+    ShrinkFactorsType shrinkFactors;
+    shrinkFactors.Fill( 10 );
+    shrinker->SetShrinkFactors( shrinkFactors );
+
+    //Flip will be incorporated in VIAME composite transform
+    /*
+
+    itk::FixedArray<bool, Dimension> flipAxes;
+    for(int i=0; i < Dimension; i++){
+      flipAxes[i] = false;
+    }
+
+    //flipAxes[0] = true;
+    //flipAxes[1] = true;
+    using FlipImageFilterType = itk::FlipImageFilter <ImageType>;
+    typename FlipImageFilterType::Pointer flipFilter = FlipImageFilterType::New();
+    if( isThermal ){
+      flipFilter->SetInput( input );
+    }
+    else{
+      flipFilter->SetInput(shrinker->GetOutput() );
+    }
+    flipFilter->SetFlipAxes(flipAxes);
+    flipFilter->Update();
+    */
+
+
+
     // Smoothing / noise reduction
     using SmootherType = itk::CoherenceEnhancingDiffusionImageFilter< ImageType >;
     typename SmootherType::Pointer smoother = SmootherType::New();
-    smoother->SetInput( changeSpacing->GetOutput() );
     smoother->SetEnhancement( SmootherType::cEED );
     if( isThermal )
       {
+      smoother->SetInput( changeSpacing->GetOutput() );
       smoother->SetDiffusionTime( 10 );
       }
     else
       {
+      smoother->SetInput( shrinker->GetOutput() );
       smoother->SetDiffusionTime( 1 );
       }
 
@@ -162,14 +171,17 @@ public:
     thresholder->SetLowerThreshold( 0.01 );
     thresholder->Update();
 
+    //Don't mess with directions either
+   /* 
     typename MaskImageType::Pointer out = thresholder->GetOutput();
     out->DisconnectPipeline();
-  
+ 
     typename MaskImageType::DirectionType direction1;
     direction1.SetIdentity();
     out->SetDirection(direction1);
+   */
 
-    return out;
+    return thresholder->GetOutput();
     }
 };
 #endif

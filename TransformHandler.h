@@ -1,5 +1,5 @@
 #ifndef TransformHandler_H
-#define TransformHander_H
+#define TransformHandler_H
 
 #include "itkMesh.h"
 #include "itkResampleImageFilter.h"
@@ -59,7 +59,7 @@ public:
     {
 
     using ResamplerType = typename itk::ResampleImageFilter< ReadImageType, WriteImageType >;
-    ResamplerType::Pointer resampler = ResamplerType::New();
+    typename ResamplerType::Pointer resampler = ResamplerType::New();
     resampler->SetInput( movingImage );
     resampler->SetOutputParametersFromImage( fixedImage );
     if(useInverse)

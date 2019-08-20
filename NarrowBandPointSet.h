@@ -68,6 +68,7 @@ public:
     typename MaskToPointSetFilterType::Pointer maskToPointSetFilter = MaskToPointSetFilterType::New();
     maskToPointSetFilter->SetInput( spacingImage );
     maskToPointSetFilter->SetBandWidth( bandwidth );
+    maskToPointSetFilter->Update();
     typename MeshType::Pointer mesh = maskToPointSetFilter->GetOutput();
     return mesh;   
     }

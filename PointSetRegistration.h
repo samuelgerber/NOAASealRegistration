@@ -151,6 +151,8 @@ public:
                                         unsigned int metricId=3, double pointSetSigma=3.0,
                                         unsigned int numberOfIterations=200, double maximumPhysicalStepSize = 1.27 )
   {
+
+    //Trim at boundaries to ensure most points are overlapping
     const PointsContainer *fixedPoints =  fixedMesh->GetPoints();
     typename BoundingBoxType::Pointer fixedBoundingBox = BoundingBoxType::New();
     fixedBoundingBox->SetPoints( fixedPoints );
@@ -170,16 +172,14 @@ public:
     PointType shiftMin = minPointM - minPointF;
     PointType shiftMax = maxPointM - maxPointF;
 
-    int trimSizeFixed = 25;
-    int trimSizeMoving = 10;
+    int trimSizeFixed = (maxPointF[0] - minPointF[0]) * 0.05;
+    int trimSizeMoving = (maxPointM[0] - minPointM[0]) * 0.05;
     for(int i=0; i<Dimension; i++)
       {
-      minPointF[i] = std::max( minPointF[i] + trimSizeMoving, minPointM[i] + trimSizeMoving );
-      maxPointF[i] = std::min( maxPointF[i] -trimSizeMoving, maxPointM[i] - trimSizeMoving);
-      minPointM[i] = minPointF[i];
-      maxPointM[i] = maxPointF[i];
       maxPointF[i] = maxPointF[i] - trimSizeFixed;
       minPointF[i] = minPointF[i] + trimSizeFixed;
+      maxPointM[i] = maxPointM[i] - trimSizeMoving;
+      minPointM[i] = minPointM[i] + trimSizeMoving;
       }
 
     fixedBoundingBox->SetMaximum(maxPointF);
@@ -231,17 +231,20 @@ public:
 
     typename AffineTransformType::Pointer affineTransform = AffineTransformType::New();
     affineTransform->SetIdentity();
-    //PointType center = minPointF + (maxPointF - minPointF)/2;
-    //center[1] = 0;
-    //affineTransform->SetCenter(center);
+    //estimate inital scaling
+    affineTransform->Scale( ((double)(maxPointM[0] - minPointM[0])) / 
+                                  (maxPointF[0] - minPointF[0])         );
+   
+    //Set the center of the affine transform 
+    PointType center = minPointF + (maxPointF - minPointF)/2;
+    affineTransform->SetCenter(center);
+
+    //Inital shift estimate 
     typename AffineTransformType::OutputVectorType shiftVector;
-    shiftVector.Fill(0);
-    shiftVector[0] = shiftMin[0];
-    shiftVector[1] = shiftMin[1];
-    std::cout << shiftMin << std::endl;
-    std::cout << shiftMax << std::endl;
-    std::cout << shiftVector << std::endl;
+    shiftVector = center - minPointM + (maxPointM - minPointM)/2;
     affineTransform->Translate( shiftVector );
+    
+
     try
       {
       switch( metricId )

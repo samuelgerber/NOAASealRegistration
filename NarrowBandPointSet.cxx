@@ -36,12 +36,12 @@ int DoProcess( int argc, char * argv[] )
   typename ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName( inputBinaryMaskFile );
   reader->Update();
-  typename BinaryMaskImageType::Pointer spacingImage = reader->GetOutput();
 
   using MeshType = typename NarrowBandPointSet<Dimension>::MeshType;
   using MeshWriterType = itk::MeshFileWriter< MeshType >;
   typename MeshWriterType::Pointer meshWriter = MeshWriterType::New();
-  typename MeshType::Pointer mesh = NarrowBandPointSet<Dimension>::ProcessImage(spacingImage, bandwidth);
+  typename MeshType::Pointer mesh = 
+    NarrowBandPointSet<Dimension>::ProcessImage( reader->GetOutput(), bandwidth);
   meshWriter->SetInput( mesh );
   meshWriter->SetFileName( outputMeshFile );
 
