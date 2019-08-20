@@ -15,6 +15,7 @@ public:
   static constexpr unsigned int MeshDimension = 2;
 
   using PointSetType = typename itk::PointSet<TPixelType, MeshDimension>;
+  using PointSetPointer = typename PointSetType::Pointer;
   using MeshType = typename itk::Mesh<TPixelType, MeshDimension>;
   using MeshPointer = typename MeshType::Pointer;
 
@@ -52,6 +53,22 @@ public:
       mesh->SetPoint( pointId, transformedPoint );
       }
     }
+
+  static PointSetPointer TransformPoints(PointSetPointer points, AffineTransformPointer transform)
+    {
+    PointSetPointer txfPoints = PointSetType::New();
+    const PointIdentifierType numberOfPoints = points->GetNumberOfPoints();
+    PointType transformedPoint;
+    for( PointIdentifierType pointId = 0; pointId < numberOfPoints; ++pointId )
+      {
+      points->GetPoint( pointId, &transformedPoint );
+      transformedPoint = transform->TransformPoint( transformedPoint );
+      txfPoints->SetPoint( pointId, transformedPoint );
+      }
+    return txfPoints;
+    }
+
+
 
   static WriteImagePointer TransformImage( ReadImagePointer movingImage,
                                            ReadImagePointer fixedImage,

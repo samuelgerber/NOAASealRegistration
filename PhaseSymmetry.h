@@ -92,7 +92,7 @@ public:
     else
       {
       smoother->SetInput( shrinker->GetOutput() );
-      smoother->SetDiffusionTime( 1 );
+      smoother->SetDiffusionTime( 2.5 );
       }
 
 /*
@@ -141,7 +141,7 @@ public:
       }
     else
       {
-      phaseSymmetryFilter->SetNoiseThreshold( 20.0 );
+      phaseSymmetryFilter->SetNoiseThreshold( 25.0 );
       }
     using MatrixType = typename PhaseSymmetryFilterType::MatrixType;
     MatrixType wavelengths( 6, Dimension );

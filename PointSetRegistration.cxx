@@ -18,8 +18,8 @@ int main(int argc, char * argv[])
   const char * outputTransformFile = argv[3];
 
   unsigned int metricId = 2;
-  unsigned int numberOfIterations = 200;
-  double maximumPhysicalStepSize = 1.27;
+  unsigned int numberOfIterations = 1000;
+  double maximumPhysicalStepSize = 1.1;
   double pointSetSigma = 3.0;
   if( argc > 4 )
     {
@@ -39,7 +39,7 @@ int main(int argc, char * argv[])
     }
 
   constexpr unsigned int Dimension=2;
-  using AffineTransformType = itk::AffineTransform<double, Dimension>;
+  using AffineTransformType = itk::CenteredAffineTransform<double, Dimension>;
   using PointSetRegistrationType = PointSetRegistration<unsigned char, AffineTransformType>;
 
   using MeshType = PointSetRegistrationType::MeshType;

@@ -40,7 +40,7 @@ int main(int argc, char * argv[])
   const char * scaledTransformFile = argv[8];
 
   constexpr unsigned int Dimension =2;
-  using AffineTransformType = itk::AffineTransform<double, Dimension>;
+  using AffineTransformType = itk::CenteredAffineTransform<double, Dimension>;
   using TransformHandlerType = TransformHandler<unsigned char, AffineTransformType>;
 
   using PointSetType = TransformHandlerType::PointSetType;

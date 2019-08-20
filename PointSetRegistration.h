@@ -13,7 +13,7 @@
 #include "itkBoundingBox.h"
 #include "itkPointSetMultiscaleOptimalTransportMethod.h"
 #include "itkOptimalTransportPointSetMetric.h"
-
+#include "TransformHandler.h"
 
 template< typename TFilter >
 class RegistrationIterationUpdateCommand: public itk::Command
@@ -168,12 +168,12 @@ public:
     PointType minPointM = movingBoundingBox->GetMinimum();
     PointType maxPointM = movingBoundingBox->GetMaximum();
 
+    float scaling = ((float)(maxPointM[0] - minPointM[0])) / 
+                                  (maxPointF[0] - minPointF[0]) ;
 
-    PointType shiftMin = minPointM - minPointF;
-    PointType shiftMax = maxPointM - maxPointF;
 
-    int trimSizeFixed = (maxPointF[0] - minPointF[0]) * 0.05;
-    int trimSizeMoving = (maxPointM[0] - minPointM[0]) * 0.05;
+    int trimSizeFixed = (maxPointF[0] - minPointF[0]) * 0.1;
+    int trimSizeMoving = (maxPointM[0] - minPointM[0]) * 0.01;
     for(int i=0; i<Dimension; i++)
       {
       maxPointF[i] = maxPointF[i] - trimSizeFixed;
@@ -232,17 +232,17 @@ public:
     typename AffineTransformType::Pointer affineTransform = AffineTransformType::New();
     affineTransform->SetIdentity();
     //estimate inital scaling
-    affineTransform->Scale( ((double)(maxPointM[0] - minPointM[0])) / 
-                                  (maxPointF[0] - minPointF[0])         );
+    affineTransform->Scale( scaling );
    
     //Set the center of the affine transform 
-    PointType center = minPointF + (maxPointF - minPointF)/2;
-    affineTransform->SetCenter(center);
-
+    PointType centerF = minPointF + (maxPointF - minPointF)/2;
+    PointType centerM = (minPointM + (maxPointM - minPointM)/2);
+    //affineTransform->SetCenter(centerF);
     //Inital shift estimate 
     typename AffineTransformType::OutputVectorType shiftVector;
-    shiftVector = center - minPointM + (maxPointM - minPointM)/2;
-    affineTransform->Translate( shiftVector );
+    shiftVector[0] = +(centerM[0]/scaling - centerF[0]);
+    shiftVector[1] = +(centerM[1]/scaling - centerF[1]);
+    affineTransform->Translate( shiftVector, true );
     
 
     try
@@ -292,7 +292,7 @@ public:
         {
         using PointSetMetricType = itk::TrimmedEuclideanDistancePointSetToPointSetMetricv4< PointSetType >;
         typename PointSetMetricType::Pointer metric = PointSetMetricType::New();
-        metric->SetDistanceCutoff( 10 );
+        metric->SetDistanceCutoff( 100 );
 
         PointSetMetricRegistration<AffineTransformType, PointSetMetricType, PointSetType >
         ( numberOfIterations, maximumPhysicalStepSize,
@@ -314,7 +314,8 @@ public:
         break;
       case 5:
         {
-        typename PointSetType::Pointer fixedTransformedPointSet = fixedPointSet;
+        using TransformHandlerType = TransformHandler<TPixelType, TAffineTransform>;
+        typename PointSetType::Pointer fixedTransformedPointSet = TransformHandlerType::TransformPoints( fixedPointSet, affineTransform );
         for(int i=0; i < 10; i++)
           {
           std::cout << "OT registration" << std::endl;
@@ -323,12 +324,12 @@ public:
           ot->SetSourcePointSet( fixedTransformedPointSet );
           ot->SetTargetPointSet( movingPointSet );
           ot->SetScaleMass( true );
-          ot->SetSourceEpsilon( 5 );
-          ot->SetTargetEpsilon( 5 );
+          ot->SetSourceEpsilon( 50 );
+          ot->SetTargetEpsilon( 50 );
           //ot->SetNumberOfScalesSource(0);
           //ot->SetNumberOfScalesTarget(0);
           ot->SetTransportType( TransportLPSolver<double>::UNBALANCED_FREE );
-          ot->SetMassCost( 2500 );
+          ot->SetMassCost( 250000 );
           ot->Update();
           typename OptimalTransportType::TransportCouplingType::Pointer coupling = ot->GetCoupling();
           coupling->SaveToCsv("tmp.csv");
