@@ -284,7 +284,15 @@ int main(int argc, char * argv[])
   TransformWriterType::Pointer transformWriter = TransformWriterType::New();
   transformWriter->SetInput( viameTransform );
   transformWriter->SetFileName( viameTransformFile );
-
+  try
+    {
+    transformWriter->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when writing output transform: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
   /*
 
   RescaleFilterType::Pointer rescaler2 = RescaleFilterType::New();
