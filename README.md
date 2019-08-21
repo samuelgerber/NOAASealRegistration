@@ -3,6 +3,8 @@ Seal Registration
 
 Requires:
 
-- ITK v5.0b03
-- `Module_PhaseSymmetry:BOOL=ON`
-- `Module_AnisotropicDiffusionLBR:BOOL=ON`
+-  ITK > commit aad815548bd7b74a91066118bae5046a25c2701c
+  - `Module_PhaseSymmetry:BOOL=ON`
+  - `Module_AnisotropicDiffusionLBR:BOOL=ON`
+- Module ITKTrimmedPointSetRegistration: https://github.com/samuelgerber/ITKTrimmedPointSetRegistration
+- Module ITKOptimalTransport: https://github.com/samuelgerber/ITKOptimalTransport
