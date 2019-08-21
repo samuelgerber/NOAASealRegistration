@@ -128,20 +128,20 @@ public:
     scale[0]=1;
     scale[1]=-1;
     flipFixed->Scale(scale);
-    typename ReadImageType::ImageRegion fixedRegion = fixedImage->GetLargestPossibleRegion();
+    typename ReadImageType::RegionType fixedRegion = fixedImage->GetLargestPossibleRegion();
     typename AffineTransformType::OutputVectorType translateFixed;
     translateFixed[0] = 0;
-    translateFixed[1] = fixedRegion->GetSize()[1];
-    flipFixed->translate( translateFixed );
+    translateFixed[1] = fixedRegion.GetSize()[1];
+    flipFixed->Translate( translateFixed );
 
     using FlipTransformType = itk::AffineTransform<double, Dimension>;
     typename FlipTransformType::Pointer flipMoving = FlipTransformType::New();
     flipMoving->Scale(scale);
-    typename ReadImageType::ImageRegion movingRegion = movingImage->GetLargestPossibleRegion();
+    typename ReadImageType::RegionType movingRegion = movingImage->GetLargestPossibleRegion();
     typename AffineTransformType::OutputVectorType translateMoving;
     translateMoving[0] = 0;
-    translateMoving[1] = movingRegion->GetSize()[1];
-    flipMoving->translate( translateMoving );
+    translateMoving[1] = movingRegion.GetSize()[1];
+    flipMoving->Translate( translateMoving );
 
     //Composition (in reverse order)
     CompositeTransformPointer composite = CompositeTransformType::New();
