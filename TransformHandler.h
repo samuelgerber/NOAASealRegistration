@@ -56,6 +56,30 @@ public:
         }
       mesh->SetPoint( pointId, transformedPoint );
       }
+   
+    }
+
+
+  
+  static void TransformViameMesh(MeshPointer mesh, CompositeTransformPointer transform, bool useInverse=false)
+    {
+    typename CompositeTransformType::InverseTransformBasePointer inverseTransform =
+         transform->GetInverseTransform();
+    const PointIdentifierType numberOfPoints = mesh->GetNumberOfPoints();
+    PointType transformedPoint;
+    for( PointIdentifierType pointId = 0; pointId < numberOfPoints; ++pointId )
+      {
+      mesh->GetPoint( pointId, &transformedPoint );
+      if(useInverse)
+        {
+        transformedPoint = inverseTransform->TransformPoint( transformedPoint );
+        }
+      else
+        {
+        transformedPoint = transform->TransformPoint( transformedPoint );
+        }
+      mesh->SetPoint( pointId, transformedPoint );
+      }
     }
 
   static PointSetPointer TransformPoints(PointSetPointer points, AffineTransformPointer transform, bool useInverse=false)

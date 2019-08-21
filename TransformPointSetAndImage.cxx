@@ -293,6 +293,37 @@ int main(int argc, char * argv[])
     std::cerr << "Error when writing output transform: " << error << std::endl;
     return EXIT_FAILURE;
     }
+
+    
+  MeshReaderType::Pointer fixedMeshReader2 = MeshReaderType::New();
+  fixedMeshReader2->SetFileName( fixedPointSetFile );
+  try
+    {
+    fixedMeshReader2->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when reading meshes: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
+  MeshType::Pointer fixedMesh2 = fixedMeshReader2->GetOutput();
+
+  //Transform Mesh
+
+  TransformHandlerType::TransformViameMesh(fixedMesh2, viameTransform);
+  MeshWriterType::Pointer fixedMeshWriter2 = MeshWriterType::New();
+  fixedMeshWriter2->SetFileName( "test.off" );
+  fixedMeshWriter2->SetInput( fixedMesh2 );
+
+  try
+    {
+    fixedMeshWriter2->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when writing mesh: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
   /*
 
   RescaleFilterType::Pointer rescaler2 = RescaleFilterType::New();
