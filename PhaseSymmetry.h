@@ -9,6 +9,8 @@
 #include <itkSmoothingRecursiveGaussianImageFilter.h>
 #include "itkFlipImageFilter.h"
 #include "itkChangeInformationImageFilter.h"
+#include "itkTranslationTransform.h"
+#include "itkResampleImageFilter.h"
 
 template< typename TImageType >
 class PhaseSymmetry
@@ -20,7 +22,6 @@ public:
 
   
   static typename MaskImageType::Pointer ProcessImage( typename ImageType::Pointer input, bool isThermal){
-
 
     constexpr unsigned int Dimension = ImageType::ImageDimension;
 
@@ -34,7 +35,6 @@ public:
     changeSpacing->SetChangeSpacing( true );
     typename ImageType::PointType forcedOrigin;
     forcedOrigin.Fill( 0 );
-    typename ImageType::DirectionType direction;
     changeSpacing->SetOutputOrigin( forcedOrigin );
     changeSpacing->SetChangeOrigin( true );
     try
@@ -87,12 +87,12 @@ public:
     if( isThermal )
       {
       smoother->SetInput( changeSpacing->GetOutput() );
-      smoother->SetDiffusionTime( 10 );
+      smoother->SetDiffusionTime( 4 );
       }
     else
       {
       smoother->SetInput( shrinker->GetOutput() );
-      smoother->SetDiffusionTime( 2.5 );
+      smoother->SetDiffusionTime( 1 );
       }
 
 /*
@@ -170,17 +170,60 @@ public:
     thresholder->SetInput( phaseSymmetryFilter->GetOutput() );
     thresholder->SetLowerThreshold( 0.01 );
     thresholder->Update();
+/*
+    std::cout << *thresholder->GetOutput()<< std::endl;
+    
+    //Make sure origin is at 0/0
+    using ChangeOriginFilterType = itk::ChangeInformationImageFilter< MaskImageType >;
+    typename ChangeOriginFilterType::Pointer changeOrigin = 
+       ChangeOriginFilterType::New();
+    changeOrigin->SetInput( thresholder->GetOutput() );
+    changeOrigin->SetOutputOrigin( forcedOrigin );
+    changeOrigin->SetChangeOrigin( true );
+    try
+      {
+      changeOrigin->UpdateOutputInformation();
+      changeOrigin->Update();
+      }
+    catch( itk::ExceptionObject & error )
+      {
+      std::cerr << "Error during reading input image: " << error << std::endl;
+      }
 
-    //Don't mess with directions either
-   /* 
-    typename MaskImageType::Pointer out = thresholder->GetOutput();
-    out->DisconnectPipeline();
- 
-    typename MaskImageType::DirectionType direction1;
-    direction1.SetIdentity();
-    out->SetDirection(direction1);
-   */
+    std::cout << *changeOrigin->GetOutput()<< std::endl;
+    //return changeOrigin->GetOutput();
+    out.DisconnectPipeline(); 
+    typename MaskImageType::PointType origin = out->GetOrigin();
+    origin.Fill(0);
+    out->SetOrigin( origin );
 
+    std::cout << out << std::endl;
+*/
+/*
+    typename MaskImageType::Pointer out = thresholder->GetOutput(); 
+    using TransformType = itk::TranslationTransform< double, Dimension >;
+    typename MaskImageType::PointType origin = out->GetOrigin();
+    typename TransformType::OutputVectorType vector;
+    vector[0] = origin[0];
+    vector[1] = origin[1];
+
+    typename TransformType::Pointer translation = TransformType::New();
+    translation->Translate( vector );
+
+    using ResampleImageFilterType = itk::ResampleImageFilter<MaskImageType, MaskImageType>;
+    typename ResampleImageFilterType::Pointer resampleFilter = ResampleImageFilterType::New();
+    resampleFilter->SetTransform( translation);
+    resampleFilter->SetInput( out );
+    resampleFilter->SetSize( out->GetLargestPossibleRegion().GetSize() );
+    resampleFilter->SetOutputParametersFromImage( out );
+    resampleFilter->SetOutputOrigin( forcedOrigin );
+    resampleFilter->Update();
+
+    std::cout << *resampleFilter->GetOutput() << std::endl;
+
+    std::cout << out->GetLargestPossibleRegion() << std::endl;
+    //return resampleFilter->GetOutput();
+    */
     return thresholder->GetOutput();
     }
 };

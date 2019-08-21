@@ -18,6 +18,8 @@ public:
   using BinaryMaskPixelType = TBinaryMaskPixelType;
   using BinaryMaskImageType = typename itk::Image< BinaryMaskPixelType, VDimension >;
   using MeshType = typename itk::Mesh< float, VDimension >; 
+  using PointIdentifierType = typename MeshType::PointIdentifier;
+  using PointType = typename MeshType::PointType;
 
   NarrowBandPointSet(){};
   ~NarrowBandPointSet(){};
@@ -70,6 +72,20 @@ public:
     maskToPointSetFilter->SetBandWidth( bandwidth );
     maskToPointSetFilter->Update();
     typename MeshType::Pointer mesh = maskToPointSetFilter->GetOutput();
+
+    /*
+    //Correct for orign changes
+    typename BinaryMaskImageType::PointType origin = spacingImage->GetOrigin();
+    const PointIdentifierType numberOfPoints = mesh->GetNumberOfPoints();
+    PointType transformedPoint;
+    for( PointIdentifierType pointId = 0; pointId < numberOfPoints; ++pointId )
+      {
+      mesh->GetPoint( pointId, &transformedPoint );
+      transformedPoint[0] += origin[0];
+      transformedPoint[1] += origin[1];
+      mesh->SetPoint( pointId, transformedPoint );
+      }
+*/
     return mesh;   
     }
 };

@@ -4,7 +4,7 @@
 #include "itkMesh.h"
 #include "itkResampleImageFilter.h"
 #include "itkCompositeTransform.h"
-
+#include "itkAffineTransform.h"
 
 template <typename TPixelType, typename TAffineTransformType>
 class TransformHandler
@@ -26,43 +26,57 @@ public:
   using TransformPointType = typename AffineTransformType::InputPointType;
   using PointIdentifierType = typename PointSetType::PointIdentifier;
 
-  using WritePixelType = unsigned char;
+  using WritePixelType = float;
   using WriteImageType = itk::Image< WritePixelType, Dimension >;
   using WriteImagePointer = typename WriteImageType::Pointer;
 
-  using ReadPixelType = int;
+  using ReadPixelType = float;
   using ReadImageType = itk::Image< ReadPixelType, Dimension >;
   using ReadImagePointer = typename ReadImageType::Pointer;
 
   using CompositeTransformType = typename itk::CompositeTransform<ParametersValueType, Dimension>;
   using CompositeTransformPointer = typename CompositeTransformType::Pointer;
 
-  static void TransformMesh(MeshPointer mesh, AffineTransformPointer transform)
+  static void TransformMesh(MeshPointer mesh, AffineTransformPointer transform, bool useInverse=false)
     {
+    typename AffineTransformType::InverseTransformBasePointer inverseTransform =
+         transform->GetInverseTransform();
     const PointIdentifierType numberOfPoints = mesh->GetNumberOfPoints();
     PointType transformedPoint;
-    TransformPointType transformedPoint2D;
     for( PointIdentifierType pointId = 0; pointId < numberOfPoints; ++pointId )
       {
       mesh->GetPoint( pointId, &transformedPoint );
-      transformedPoint2D[0] = transformedPoint[0];
-      transformedPoint2D[1] = transformedPoint[1];
-      transformedPoint2D = transform->TransformPoint( transformedPoint2D );
-      transformedPoint[0] = transformedPoint2D[0];
-      transformedPoint[1] = transformedPoint2D[1];
+      if(useInverse)
+        {
+        transformedPoint = inverseTransform->TransformPoint( transformedPoint );
+        }
+      else
+        {
+        transformedPoint = transform->TransformPoint( transformedPoint );
+        }
       mesh->SetPoint( pointId, transformedPoint );
       }
     }
 
-  static PointSetPointer TransformPoints(PointSetPointer points, AffineTransformPointer transform)
+  static PointSetPointer TransformPoints(PointSetPointer points, AffineTransformPointer transform, bool useInverse=false)
     {
     PointSetPointer txfPoints = PointSetType::New();
     const PointIdentifierType numberOfPoints = points->GetNumberOfPoints();
     PointType transformedPoint;
+    typename AffineTransformType::InverseTransformBasePointer inverseTransform =
+         transform->GetInverseTransform();
+
     for( PointIdentifierType pointId = 0; pointId < numberOfPoints; ++pointId )
       {
       points->GetPoint( pointId, &transformedPoint );
-      transformedPoint = transform->TransformPoint( transformedPoint );
+      if(useInverse)
+        {
+        transformedPoint = inverseTransform->TransformPoint( transformedPoint );
+        }
+      else
+        {
+        transformedPoint = transform->TransformPoint( transformedPoint );
+        }
       txfPoints->SetPoint( pointId, transformedPoint );
       }
     return txfPoints;
@@ -72,7 +86,8 @@ public:
 
   static WriteImagePointer TransformImage( ReadImagePointer movingImage,
                                            ReadImagePointer fixedImage,
-                                           AffineTransformPointer transform, bool useInverse=false)
+                                           AffineTransformPointer transform, 
+                                           bool useInverse=false)
     {
 
     using ResamplerType = typename itk::ResampleImageFilter< ReadImageType, WriteImageType >;
@@ -83,6 +98,7 @@ public:
       {
       typename AffineTransformType::InverseTransformBasePointer inverseTransform =
          transform->GetInverseTransform();
+      std::cout << inverseTransform << std::endl;
       resampler->SetTransform( inverseTransform );
       }
     else
@@ -100,18 +116,41 @@ public:
     return resampler->GetOutput();
     }
 
-  CompositeTransformPointer CreateVAIMEComposition( AffineTransformPointer affine )
+  static CompositeTransformPointer CreateVIAMEComposition( ReadImagePointer movingImage,
+                                                    ReadImagePointer fixedImage,
+                                                    AffineTransformPointer affine )
     {
+
+    //Correct for VIAME flipped y-axis
+    using FlipTransformType = itk::AffineTransform<double, Dimension>;
+    typename FlipTransformType::Pointer flipFixed = FlipTransformType::New();
+    typename AffineTransformType::OutputVectorType scale;
+    scale[0]=1;
+    scale[1]=-1;
+    flipFixed->Scale(scale);
+    typename ReadImageType::ImageRegion fixedRegion = fixedImage->GetLargestPossibleRegion();
+    typename AffineTransformType::OutputVectorType translateFixed;
+    translateFixed[0] = 0;
+    translateFixed[1] = fixedRegion->GetSize()[1];
+    flipFixed->translate( translateFixed );
+
+    using FlipTransformType = itk::AffineTransform<double, Dimension>;
+    typename FlipTransformType::Pointer flipMoving = FlipTransformType::New();
+    flipMoving->Scale(scale);
+    typename ReadImageType::ImageRegion movingRegion = movingImage->GetLargestPossibleRegion();
+    typename AffineTransformType::OutputVectorType translateMoving;
+    translateMoving[0] = 0;
+    translateMoving[1] = movingRegion->GetSize()[1];
+    flipMoving->translate( translateMoving );
+
+    //Composition (in reverse order)
     CompositeTransformPointer composite = CompositeTransformType::New();
-    //1. Correct for VIAME flipped y-axis
-
-    //2. Correct for affine center versuse VIAME top-left center
-
-    //3. Apply affine transform
-
-    //4. Revert center correction
-
-    //5. Revert axis fliping
+    //3. Apply flip of moving image
+    composite->AddTransform( flipMoving );
+    //2. Apply affine transform
+    composite->AddTransform( affine );
+    //1. Apply flip of fixed image 
+    composite->AddTransform( flipFixed );
 
     return composite;
     }
