@@ -149,7 +149,8 @@ public:
 
   static AffineTransformPointer Process( MeshPointer fixedMesh, MeshPointer movingMesh,
                                         unsigned int metricId=3, double pointSetSigma=3.0,
-                                        unsigned int numberOfIterations=200, double maximumPhysicalStepSize = 1.27 )
+                                        unsigned int numberOfIterations=200, 
+                                        double maximumPhysicalStepSize = 1.27 )
   {
 
     //Trim at boundaries to ensure most points are overlapping
@@ -316,7 +317,7 @@ public:
         {
         using TransformHandlerType = TransformHandler<TPixelType, TAffineTransform>;
         typename PointSetType::Pointer fixedTransformedPointSet = TransformHandlerType::TransformPoints( fixedPointSet, affineTransform );
-        for(int i=0; i < 10; i++)
+        for(int i=0; i < 5; i++)
           {
           std::cout << "OT registration" << std::endl;
           using OptimalTransportType = itk::PointSetMultiscaleOptimalTransportMethod<PointSetType, PointSetType, double>;
@@ -324,12 +325,12 @@ public:
           ot->SetSourcePointSet( fixedTransformedPointSet );
           ot->SetTargetPointSet( movingPointSet );
           ot->SetScaleMass( true );
-          ot->SetSourceEpsilon( 50 );
-          ot->SetTargetEpsilon( 50 );
+          ot->SetSourceEpsilon( 20 );
+          ot->SetTargetEpsilon( 20 );
           //ot->SetNumberOfScalesSource(0);
           //ot->SetNumberOfScalesTarget(0);
           ot->SetTransportType( TransportLPSolver<double>::UNBALANCED_FREE );
-          ot->SetMassCost( 250000 );
+          ot->SetMassCost( 10000 );
           ot->Update();
           typename OptimalTransportType::TransportCouplingType::Pointer coupling = ot->GetCoupling();
           coupling->SaveToCsv("tmp.csv");
@@ -339,9 +340,18 @@ public:
           typename PointSetMetricType::Pointer metric = PointSetMetricType::New();
           metric->SetCoupling( coupling );
           PointSetMetricRegistration<AffineTransformType, PointSetMetricType, PointSetType >
-               ( 50, maximumPhysicalStepSize, affineTransform, metric,
+               ( 1000, maximumPhysicalStepSize, affineTransform, metric,
                  fixedPointSet, movingPointSet);
           fixedTransformedPointSet = metric->GetFixedTransformedPointSet();
+          
+          std::ofstream myfile;
+          myfile.open( "fixedTxfTrimmed.csv" );
+          for(int i=0; i<fixedTransformedPointSet->GetNumberOfPoints(); i++)
+            {
+            PointType p = fixedTransformedPointSet->GetPoint(i);
+            myfile << p[0] << " , " << p[1] << std::endl;
+            }
+          myfile.close();
           }
         }
         break;

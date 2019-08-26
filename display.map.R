@@ -1,4 +1,4 @@
-ir <- read.csv("fixedTrimmed.csv", header=F)
+ir <- read.csv("fixedTxfTrimmed.csv", header=F)
 optic <- read.csv("movingTrimmed.csv", header=F)
 map <-read.csv("tmp.csv", header=F)
 

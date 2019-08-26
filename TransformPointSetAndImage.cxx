@@ -40,7 +40,9 @@ int main(int argc, char * argv[])
   const char * transformedMovingPointSetFile = argv[5];
   const char * fixedOriginalImageFile = argv[6];
   const char * movingOriginalImageFile = argv[7];
-  const char * viameTransformFile = argv[8];
+  const char * fixedPhaseImageFile = argv[8];
+  const char * movingPhaseImageFile = argv[9];
+  const char * viameTransformFile = argv[10];
 
   constexpr unsigned int Dimension =2;
   using AffineTransformType = itk::CenteredAffineTransform<double, Dimension>;
@@ -234,12 +236,114 @@ int main(int argc, char * argv[])
     }
 
 
+  //Read phase image to correct for FFT Pad filter shift in VIAME transform
+  //Fixed phase image
+  ImageReaderType::Pointer fixedPhaseReader = ImageReaderType::New();
+  fixedPhaseReader->SetFileName( fixedPhaseImageFile );
+  try
+    {
+    fixedPhaseReader->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when reading fixed image: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
+  ReadImageType::Pointer fixedPhase = fixedPhaseReader->GetOutput();
 
+  //moving phase image
+  ImageReaderType::Pointer movingPhaseReader = ImageReaderType::New();
+  movingPhaseReader->SetFileName( movingPhaseImageFile );
+  try
+    {
+    movingPhaseReader->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when reading fixed image: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
+  ReadImageType::Pointer movingPhase = movingPhaseReader->GetOutput();
+
+
+
+  //Add VIAME correction to transform
+  TransformHandlerType::CompositeTransformPointer viameTransform =
+          TransformHandlerType::CreateVIAMEComposition( movingImage, fixedImage, 
+                                                        movingPhase, fixedPhase,
+                                                        transform);
+
+  using TransformWriterType = itk::TransformFileWriterTemplate< double >;
+  TransformWriterType::Pointer transformWriter = TransformWriterType::New();
+  transformWriter->SetInput( viameTransform );
+  transformWriter->SetFileName( viameTransformFile );
+  try
+    {
+    transformWriter->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when writing output transform: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
+
+  std::cout << viameTransform << std::endl;
+  typename TransformHandlerType::CompositeTransformType::InverseTransformBasePointer 
+    inverseViameTransform = viameTransform->GetInverseTransform();
+
+  TransformWriterType::Pointer inverseTransformWriter = TransformWriterType::New();
+  inverseTransformWriter->SetInput( inverseViameTransform );
+  inverseTransformWriter->SetFileName( "inverse.h5" );
+  try
+    {
+    inverseTransformWriter->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when writing output transform: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
+    
+  MeshReaderType::Pointer fixedMeshReader2 = MeshReaderType::New();
+  fixedMeshReader2->SetFileName( fixedPointSetFile );
+  try
+    {
+    fixedMeshReader2->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when reading meshes: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
+  MeshType::Pointer fixedMesh2 = fixedMeshReader2->GetOutput();
+
+  //Transform Mesh
+
+  TransformHandlerType::TransformViameMesh(fixedMesh2, viameTransform);
+  MeshWriterType::Pointer fixedMeshWriter2 = MeshWriterType::New();
+  fixedMeshWriter2->SetFileName( "test.off" );
+  fixedMeshWriter2->SetInput( fixedMesh2 );
+
+  try
+    {
+    fixedMeshWriter2->Update();
+    }
+  catch( itk::ExceptionObject & error )
+    {
+    std::cerr << "Error when writing mesh: " << error << std::endl;
+    return EXIT_FAILURE;
+    }
+
+
+
+
+  
   using WriteImageType = TransformHandlerType::WriteImageType;
 
   //Transform moving to fixed
   WriteImageType::Pointer txfMovingImage =
-          TransformHandlerType::TransformImage(movingImage, fixedImage, transform, false);
+          TransformHandlerType::TransformImage( movingImage, fixedImage,  
+                                                transform, false);
 
 
   using ImageWriterType = itk::ImageFileWriter< WriteImageType >;
@@ -276,54 +380,7 @@ int main(int argc, char * argv[])
     }
 
 
-  //Add VIAME correction to transform
-  TransformHandlerType::CompositeTransformPointer viameTransform =
-          TransformHandlerType::CreateVIAMEComposition(movingImage, fixedImage, transform);
 
-  using TransformWriterType = itk::TransformFileWriterTemplate< double >;
-  TransformWriterType::Pointer transformWriter = TransformWriterType::New();
-  transformWriter->SetInput( viameTransform );
-  transformWriter->SetFileName( viameTransformFile );
-  try
-    {
-    transformWriter->Update();
-    }
-  catch( itk::ExceptionObject & error )
-    {
-    std::cerr << "Error when writing output transform: " << error << std::endl;
-    return EXIT_FAILURE;
-    }
-
-    
-  MeshReaderType::Pointer fixedMeshReader2 = MeshReaderType::New();
-  fixedMeshReader2->SetFileName( fixedPointSetFile );
-  try
-    {
-    fixedMeshReader2->Update();
-    }
-  catch( itk::ExceptionObject & error )
-    {
-    std::cerr << "Error when reading meshes: " << error << std::endl;
-    return EXIT_FAILURE;
-    }
-  MeshType::Pointer fixedMesh2 = fixedMeshReader2->GetOutput();
-
-  //Transform Mesh
-
-  TransformHandlerType::TransformViameMesh(fixedMesh2, viameTransform);
-  MeshWriterType::Pointer fixedMeshWriter2 = MeshWriterType::New();
-  fixedMeshWriter2->SetFileName( "test.off" );
-  fixedMeshWriter2->SetInput( fixedMesh2 );
-
-  try
-    {
-    fixedMeshWriter2->Update();
-    }
-  catch( itk::ExceptionObject & error )
-    {
-    std::cerr << "Error when writing mesh: " << error << std::endl;
-    return EXIT_FAILURE;
-    }
   /*
 
   RescaleFilterType::Pointer rescaler2 = RescaleFilterType::New();

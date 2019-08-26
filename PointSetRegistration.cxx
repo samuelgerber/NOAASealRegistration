@@ -18,7 +18,7 @@ int main(int argc, char * argv[])
   const char * outputTransformFile = argv[3];
 
   unsigned int metricId = 2;
-  unsigned int numberOfIterations = 1000;
+  unsigned int numberOfIterations = 500;
   double maximumPhysicalStepSize = 1.1;
   double pointSetSigma = 3.0;
   if( argc > 4 )

@@ -48,9 +48,14 @@ public:
       }
     
 
+    using ShrinkSmootherType = itk::SmoothingRecursiveGaussianImageFilter< ImageType >;
+    typename ShrinkSmootherType::Pointer shrinkSmoother = ShrinkSmootherType::New();
+    shrinkSmoother->SetInput( changeSpacing->GetOutput() );
+    shrinkSmoother->SetSigma(10);
+    
     using ShrinkerType = itk::BinShrinkImageFilter< ImageType, ImageType >;
     typename ShrinkerType::Pointer shrinker = ShrinkerType::New();
-    shrinker->SetInput( changeSpacing->GetOutput()  );
+    shrinker->SetInput( shrinkSmoother->GetOutput()  );
     using ShrinkFactorsType = typename ShrinkerType::ShrinkFactorsType;
     ShrinkFactorsType shrinkFactors;
     shrinkFactors.Fill( 10 );
@@ -92,23 +97,9 @@ public:
     else
       {
       smoother->SetInput( shrinker->GetOutput() );
-      smoother->SetDiffusionTime( 1 );
+      smoother->SetDiffusionTime( 4 );
       }
 
-/*
-    using SmootherType = itk::SmoothingRecursiveGaussianImageFilter< ImageType >;
-    SmootherType::Pointer smoother = SmootherType::New();
-    if( isThermal )
-      {
-      smoother->SetInput( reader->GetOutput() );
-      smoother->SetSigma(10);
-      }
-    else
-      {
-      smoother->SetInput( shrinker->GetOutput() );
-      smoother->SetSigma(30);
-      }
-*/
 
     using FFTPadFilterType = itk::FFTPadImageFilter< ImageType >;
     typename FFTPadFilterType::Pointer fftPadFilter = FFTPadFilterType::New();
