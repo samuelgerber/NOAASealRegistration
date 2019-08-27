@@ -140,6 +140,8 @@ public:
     return resampler->GetOutput();
     }
 
+
+
   static CompositeTransformPointer CreateVIAMEComposition( ReadImagePointer movingImage,
                                                     ReadImagePointer fixedImage,
                                                     ReadImagePointer movingPhase,
@@ -159,7 +161,7 @@ public:
     unsigned int fixedPhaseW = fixedPhaseRegion.GetSize()[0] * fixedPhase->GetSpacing()[0];
     unsigned int fixedPhaseH = fixedPhaseRegion.GetSize()[1] * fixedPhase->GetSpacing()[1];
     typename AffineTransformType::OutputVectorType translateFixed;
-    translateFixed[0] = (fixedPhaseW- fixedRegion.GetSize()[0])/2;
+    translateFixed[0] = +(fixedPhaseW - fixedRegion.GetSize()[0])/2;
     translateFixed[1] = fixedRegion.GetSize()[1] + (fixedPhaseH - fixedRegion.GetSize()[1])/2;
     flipFixed->Translate( translateFixed );
 
@@ -171,12 +173,12 @@ public:
     unsigned int movingPhaseW = movingPhaseRegion.GetSize()[0] * movingPhase->GetSpacing()[0];
     unsigned int movingPhaseH = movingPhaseRegion.GetSize()[1] * movingPhase->GetSpacing()[1];
     typename AffineTransformType::OutputVectorType translateMoving;
-    translateMoving[0] = (movingPhaseW - movingRegion.GetSize()[0])/2;
-    translateMoving[1] = movingRegion.GetSize()[1] + (movingPhaseH - movingRegion.GetSize()[1])/2;
+    translateMoving[0] = -( movingPhaseW - movingRegion.GetSize()[0] ) / 2;
+    translateMoving[1] = movingRegion.GetSize()[1] + ( movingPhaseH - movingRegion.GetSize()[1] ) / 2;
     flipMoving->Translate( translateMoving );
 
-    std::cout << fixedRegion << std::endl;
-    std::cout << fixedPhaseW << "x" << fixedPhaseH << std::endl;
+    std::cout << fixedRegion  << std::endl;
+    std::cout << fixedPhaseW  << " x " << fixedPhaseH << std::endl;
     std::cout << movingRegion << std::endl;
     std::cout << movingPhaseW << " x " << movingPhaseH << std::endl;
 
