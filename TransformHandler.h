@@ -158,6 +158,8 @@ public:
     flipFixed->Scale(scale);
     typename ReadImageType::RegionType fixedRegion = fixedImage->GetLargestPossibleRegion();
     typename ReadImageType::RegionType fixedPhaseRegion = fixedPhase->GetLargestPossibleRegion();
+    
+    //Correction for phase symmetry filter padding
     unsigned int fixedPhaseW = fixedPhaseRegion.GetSize()[0] * fixedPhase->GetSpacing()[0];
     unsigned int fixedPhaseH = fixedPhaseRegion.GetSize()[1] * fixedPhase->GetSpacing()[1];
     typename AffineTransformType::OutputVectorType translateFixed;
@@ -170,6 +172,8 @@ public:
     flipMoving->Scale(scale);
     typename ReadImageType::RegionType movingRegion = movingImage->GetLargestPossibleRegion();
     typename ReadImageType::RegionType movingPhaseRegion = movingPhase->GetLargestPossibleRegion();
+
+    //Correction for phase symmetry filter padding
     unsigned int movingPhaseW = movingPhaseRegion.GetSize()[0] * movingPhase->GetSpacing()[0];
     unsigned int movingPhaseH = movingPhaseRegion.GetSize()[1] * movingPhase->GetSpacing()[1];
     typename AffineTransformType::OutputVectorType translateMoving;
